@@ -1,0 +1,674 @@
+<title>Painel de Cadastros</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: painel operacional de uma coluna — faixa de pessoas (1 célula = 1 usuário) no topo filtra todo o resto. */
+:root {
+  --bg: #F3F5F8;
+  --surface: #FFFFFF;
+  --ink: #11151B;
+  --muted: #566170;
+  --line: #DCE1E8;
+  --soft: #E9EDF2;
+  --accent: #1F4FD8;
+  --accent-ink: #FFFFFF;
+  --ok: #17784A;
+  --warn: #A9540A;
+  --c-comunidade: #0B8577;
+  --c-startup: #3555D6;
+  --c-entidade: #B86E06;
+  --c-empresa: #96368A;
+  --c-ies: #5A7A0F;
+  --c-none: #8A94A3;
+  --font: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 10px;
+  --shadow: 0 1px 2px rgba(17,21,27,.06), 0 4px 16px rgba(17,21,27,.05);
+  --ease: cubic-bezier(.16,1,.3,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1015; --surface: #151A21; --ink: #E7EBF0; --muted: #9AA5B3; --line: #28303A; --soft: #1D232C;
+    --accent: #86A0FF; --accent-ink: #0D1015; --ok: #4CC487; --warn: #F0A24A;
+    --c-comunidade: #3CC2B2; --c-startup: #8199FF; --c-entidade: #EFA63B; --c-empresa: #DA7DCC; --c-ies: #A4C84D; --c-none: #6E7886;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1015; --surface: #151A21; --ink: #E7EBF0; --muted: #9AA5B3; --line: #28303A; --soft: #1D232C;
+  --accent: #86A0FF; --accent-ink: #0D1015; --ok: #4CC487; --warn: #F0A24A;
+  --c-comunidade: #3CC2B2; --c-startup: #8199FF; --c-entidade: #EFA63B; --c-empresa: #DA7DCC; --c-ies: #A4C84D; --c-none: #6E7886;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 var(--font); font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+::selection { background: var(--accent); color: var(--accent-ink); }
+:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); border-radius: 6px; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+.wrap {
+  max-width: 1180px; margin: 0 auto;
+  padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px;
+}
+
+/* Cabeçalho */
+.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; }
+.top h1 { margin: 0; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; }
+.top p { margin: 6px 0 0; color: var(--muted); }
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px;
+  border-radius: 999px; background: var(--surface); border: 1px solid var(--line);
+  font-size: 13px; color: var(--muted); white-space: nowrap;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.chip[data-mode="snapshot"] .dot { background: var(--warn); }
+.chip[data-mode="erro"] .dot { background: #D33; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: var(--bg);
+  font-weight: 600; font-size: 14px; transition: transform .15s var(--ease), opacity .15s;
+}
+.btn:hover { opacity: .88; }
+.btn:active { transform: scale(.97); }
+.btn[disabled] { opacity: .45; cursor: progress; }
+.btn svg { width: 16px; height: 16px; }
+.btn.loading svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Faixa de números */
+.kpis {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow);
+}
+.kpi { padding: 18px 20px; display: grid; gap: 2px; min-width: 0; }
+.kpi + .kpi { border-left: 1px solid var(--line); }
+.kpi dt { font-size: 13px; color: var(--muted); }
+.kpi dd { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.kpi small { font-size: 13px; color: var(--muted); }
+.kpi small b { color: var(--ink); font-weight: 600; }
+
+/* Blocos */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 22px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.panel .sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.panel-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 20px; }
+
+/* Assinatura: faixa de pessoas */
+.people { display: flex; gap: 3px; height: 54px; align-items: stretch; }
+.people .cell {
+  flex: 1 1 0; min-width: 3px; border-radius: 3px; background: var(--c);
+  transition: opacity .2s var(--ease), transform .2s var(--ease);
+}
+.people .cell.unverified { background: color-mix(in srgb, var(--c) 42%, var(--surface)); }
+.people.filtering .cell:not(.on) { opacity: .16; }
+.people .gap { flex: 0 0 8px; }
+
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin-top: 16px; }
+.group {
+  text-align: left; display: grid; gap: 4px; padding: 12px 14px; min-height: 44px;
+  background: var(--soft); border: 1px solid transparent; border-radius: 8px;
+  transition: border-color .15s, background .15s;
+}
+.group:hover { border-color: var(--line); }
+.group[aria-pressed="true"] { background: var(--surface); border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
+.group .name { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
+.group .n { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.group .n span { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.legend-note { margin-top: 12px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 16px; }
+.legend-note i { display: inline-block; width: 18px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+
+.filterbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+.filterbar[hidden] { display: none; }
+.linkbtn { background: none; border: 0; padding: 10px 4px; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Funil */
+.funnel { display: grid; gap: 14px; }
+.step { display: grid; gap: 6px; }
+.step-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.step-row b { font-weight: 700; }
+.step-row span { color: var(--muted); }
+.track { height: 12px; border-radius: 6px; background: var(--soft); overflow: hidden; }
+.fill { height: 100%; border-radius: 6px; background: var(--accent); transform-origin: left; transition: width .5s var(--ease); }
+.fill.ok { background: var(--ok); }
+.fill.warn { background: var(--warn); }
+.note { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+
+/* Barras horizontais */
+.hbars { display: grid; gap: 12px; }
+.hbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 14px; }
+.hbar .track { grid-column: 1 / -1; height: 10px; }
+.hbar .v { color: var(--muted); }
+.hbar .v b { color: var(--ink); }
+
+/* Colunas verticais */
+.cols { display: grid; grid-template-rows: 1fr auto; gap: 8px; }
+.cols .plot { position: relative; height: 180px; display: flex; align-items: flex-end; gap: 6px; border-bottom: 1px solid var(--line); }
+.cols .gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); pointer-events: none; }
+.cols .gridline span { position: absolute; right: 0; top: -9px; font-size: 11px; color: var(--muted); background: var(--surface); padding-left: 4px; }
+.col { flex: 1 1 0; min-width: 0; position: relative; height: 100%; display: flex; align-items: flex-end; }
+.col .bar {
+  width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 0;
+  transition: height .5s var(--ease), opacity .15s;
+}
+.col .bar.zero { background: transparent; }
+.col:hover .bar, .col:focus-visible .bar { opacity: .75; }
+.col .val { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.cols .labels { display: flex; gap: 6px; }
+.cols .labels span { flex: 1 1 0; min-width: 0; text-align: center; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.tip {
+  position: fixed; z-index: 50; pointer-events: none; padding: 8px 10px; border-radius: 8px;
+  background: var(--ink); color: var(--bg); font-size: 13px; line-height: 1.35; box-shadow: var(--shadow);
+  opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .12s;
+}
+.tip.show { opacity: 1; transform: none; }
+
+/* Tabela */
+.tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.input, .select {
+  height: 44px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0 12px;
+  font-size: 16px; min-width: 0;
+}
+.input { width: min(320px, 100%); }
+.input:focus, .select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.table-wrap { overflow: auto; max-height: 620px; margin-top: 16px; border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 820px; }
+th { z-index: 1; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+th { position: sticky; top: 0; background: var(--soft); font-size: 12.5px; font-weight: 600; color: var(--muted); }
+th button { background: none; border: 0; padding: 4px 0; font-weight: 600; color: inherit; display: inline-flex; gap: 4px; align-items: center; }
+th[aria-sort] button { color: var(--ink); }
+th .arrow { width: 10px; opacity: .7; }
+td.num, th.num { text-align: right; }
+tbody tr:hover { background: color-mix(in srgb, var(--soft) 60%, transparent); }
+.who { display: grid; }
+.who b { font-weight: 600; }
+.who span { color: var(--muted); font-size: 13px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+.pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.pill.admin { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.empty { padding: 36px 16px; text-align: center; color: var(--muted); }
+.count { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+.banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; font-size: 14px;
+  background: color-mix(in srgb, var(--warn) 12%, var(--surface)); color: var(--ink); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); }
+.banner svg { width: 18px; height: 18px; flex: none; color: var(--warn); margin-top: 2px; }
+
+.skeleton { background: linear-gradient(90deg, var(--soft), var(--line), var(--soft)); background-size: 200% 100%; animation: sh 1.2s linear infinite; border-radius: 6px; }
+@keyframes sh { to { background-position: -200% 0; } }
+
+@media (max-width: 920px) {
+  .grid-3 { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi:nth-child(3) { border-left: 0; }
+  .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+@media (max-width: 720px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .panel { padding: 18px 16px; }
+  .people { height: 44px; gap: 2px; }
+  .people .gap { flex-basis: 5px; }
+  .kpi dd { font-size: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div>
+      <h1>Painel de cadastros</h1>
+      <p id="subtitle">Usuários do banco, divididos por vínculo e pela forma como se cadastraram.</p>
+    </div>
+    <div class="status">
+      <span class="chip" id="source" data-mode="live"><span class="dot"></span><span id="source-text">Conectando…</span></span>
+      <button class="btn" id="refresh" type="button" aria-label="Atualizar dados">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        Atualizar
+      </button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span id="banner-text"></span>
+  </div>
+
+  <dl class="kpis" id="kpis" aria-live="polite">
+    <div class="kpi"><dt>Usuários cadastrados</dt><dd id="k-total">–</dd><small id="k-total-s">&nbsp;</small></div>
+    <div class="kpi"><dt>E-mail verificado</dt><dd id="k-ver">–</dd><small id="k-ver-s">&nbsp;</small></div>
+    <div class="kpi"><dt>Cadastros nas últimas 24 h</dt><dd id="k-24">–</dd><small id="k-24-s">&nbsp;</small></div>
+    <div class="kpi"><dt>Cadastros pendentes</dt><dd id="k-pend">–</dd><small id="k-pend-s">&nbsp;</small></div>
+  </dl>
+
+  <section class="panel" aria-labelledby="h-div">
+    <div class="panel-head">
+      <div>
+        <h2 id="h-div">Como os usuários estão divididos</h2>
+        <p class="sub">Cada bloco é uma pessoa, agrupada pelo vínculo escolhido no cadastro. Clique num grupo para filtrar o painel inteiro.</p>
+      </div>
+      <div class="filterbar" id="filterbar" hidden>
+        <span>Filtrando: <b id="filter-name"></b></span>
+        <button class="linkbtn" id="clear-filter" type="button">Mostrar todos</button>
+      </div>
+    </div>
+    <div class="people" id="people" role="img" aria-label="Distribuição de usuários por vínculo"></div>
+    <div class="groups" id="groups"></div>
+    <div class="legend-note">
+      <span><i style="background: var(--muted)"></i>Cor cheia: e-mail verificado</span>
+      <span><i style="background: color-mix(in srgb, var(--muted) 42%, var(--surface))"></i>Cor clara: ainda não verificou</span>
+    </div>
+  </section>
+
+  <div class="grid-3">
+    <section class="panel" aria-labelledby="h-funnel">
+      <div class="panel-head"><div>
+        <h2 id="h-funnel">Etapas do cadastro</h2>
+        <p class="sub">Quem começou, quem concluiu e quem confirmou o e-mail.</p>
+      </div></div>
+      <div class="funnel" id="funnel"></div>
+      <p class="note" id="funnel-note"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-dev">
+      <div class="panel-head"><div>
+        <h2 id="h-dev">Aparelho usado</h2>
+        <p class="sub">Dispositivo da primeira sessão de cada usuário.</p>
+      </div></div>
+      <div class="hbars" id="devices"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-contact">
+      <div class="panel-head"><div>
+        <h2 id="h-contact">Dados informados</h2>
+        <p class="sub">Campos preenchidos no formulário de cadastro.</p>
+      </div></div>
+      <div class="hbars" id="fields"></div>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel" aria-labelledby="h-days">
+      <div class="panel-head"><div>
+        <h2 id="h-days">Cadastros por dia</h2>
+        <p class="sub" id="days-sub">Horário de Fortaleza.</p>
+      </div></div>
+      <div class="cols" id="days"></div>
+    </section>
+    <section class="panel" aria-labelledby="h-hours">
+      <div class="panel-head"><div>
+        <h2 id="h-hours">Cadastros por hora do dia</h2>
+        <p class="sub" id="hours-sub">Soma de todos os dias.</p>
+      </div></div>
+      <div class="cols" id="hours"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-users">
+    <div class="panel-head">
+      <div>
+        <h2 id="h-users">Usuários</h2>
+        <p class="sub">Busque por nome ou e-mail, filtre e ordene pelas colunas.</p>
+      </div>
+      <div class="tools">
+        <div class="field">
+          <label for="q">Buscar</label>
+          <input class="input" id="q" type="search" placeholder="Nome ou e-mail" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-vinculo">Vínculo</label>
+          <select class="select" id="f-vinculo"></select>
+        </div>
+        <div class="field">
+          <label for="f-status">Situação</label>
+          <select class="select" id="f-status">
+            <option value="">Todas</option>
+            <option value="ok">E-mail verificado</option>
+            <option value="pend">Não verificado</option>
+            <option value="admin">Administradores</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="count" id="count"></p>
+  </section>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+  const TZ = 'America/Fortaleza';
+  const VINCULOS = [
+    { key: 'comunidade', label: 'Comunidade', color: 'var(--c-comunidade)' },
+    { key: 'startup_do_sistema', label: 'Startup do sistema', color: 'var(--c-startup)' },
+    { key: 'entidade', label: 'Entidade', color: 'var(--c-entidade)' },
+    { key: 'empresa', label: 'Empresa', color: 'var(--c-empresa)' },
+    { key: 'instituicao_ensino_superior', label: 'Instituição de ensino superior', color: 'var(--c-ies)' },
+    { key: null, label: 'Não informado', color: 'var(--c-none)' },
+  ];
+  const vinfo = (k) => VINCULOS.find(v => v.key === (k || null)) || { key: k, label: k, color: 'var(--c-none)' };
+  const MASK = !!window.__MASK__;
+  const $ = (id) => document.getElementById(id);
+  const nf = new Intl.NumberFormat('pt-BR');
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const dayKey = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(d));
+  const hourOf = (d) => Number(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' }).format(new Date(d)));
+  const fmtDT = (d) => new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(d));
+  const fmtDay = (k) => { const [y, m, d] = k.split('-'); return `${d}/${m}`; };
+  const maskEmail = (e) => { if (!e || !MASK) return e || ''; const [u, dom] = e.split('@'); return `${u.slice(0, 3)}•••@${dom || ''}`; };
+
+  let DATA = null;
+  const state = { vinculo: undefined, q: '', status: '', sort: { key: 'registro', dir: -1 } };
+
+  const tip = $('tip');
+  function showTip(el, html) {
+    tip.innerHTML = html; tip.classList.add('show');
+    const r = el.getBoundingClientRect(); const t = tip.getBoundingClientRect();
+    let x = r.left + r.width / 2 - t.width / 2; x = Math.max(8, Math.min(x, innerWidth - t.width - 8));
+    let y = r.top - t.height - 8; if (y < 8) y = r.bottom + 8;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  const hideTip = () => tip.classList.remove('show');
+
+  function filtered() {
+    if (state.vinculo === undefined) return DATA.users;
+    return DATA.users.filter(u => (u.vinculo || null) === state.vinculo);
+  }
+
+  // ---------- KPIs
+  function renderKpis() {
+    const all = filtered();
+    const total = all.length, ver = all.filter(u => u.verificado).length;
+    const now = Date.now(), last24 = all.filter(u => now - new Date(u.registro) < 864e5).length;
+    const pend = DATA.pending.filter(p => state.vinculo === undefined || (p.vinculo || null) === state.vinculo);
+    $('k-total').textContent = nf.format(total);
+    $('k-total-s').innerHTML = state.vinculo === undefined
+      ? `<b>${DATA.users.filter(u => u.admin).length}</b> administradores`
+      : `<b>${pct(total, DATA.users.length)}%</b> do total de ${DATA.users.length}`;
+    $('k-ver').textContent = nf.format(ver);
+    $('k-ver-s').innerHTML = `<b>${pct(ver, total)}%</b> dos cadastrados`;
+    $('k-24').textContent = nf.format(last24);
+    $('k-24-s').innerHTML = `<b>${pct(last24, total)}%</b> da base`;
+    $('k-pend').textContent = nf.format(pend.length);
+    $('k-pend-s').innerHTML = pend.length ? 'Iniciaram, mas não confirmaram o código' : 'Nenhum cadastro parado';
+  }
+
+  // ---------- Faixa de pessoas + grupos
+  function renderPeople() {
+    const people = $('people'); const groupsEl = $('groups');
+    const total = DATA.users.length;
+    const byGroup = VINCULOS.map(v => ({ ...v, users: DATA.users.filter(u => (u.vinculo || null) === v.key) }))
+      .concat(unknownGroups())
+      .filter(g => g.users.length)
+      .sort((a, b) => b.users.length - a.users.length);
+
+    const unit = total <= 400;
+    let html = '';
+    byGroup.forEach((g, i) => {
+      if (i) html += '<span class="gap" aria-hidden="true"></span>';
+      const on = state.vinculo === undefined || state.vinculo === g.key ? ' on' : '';
+      if (unit) {
+        const sorted = [...g.users].sort((a, b) => b.verificado - a.verificado);
+        html += sorted.map(u => `<span class="cell${on}${u.verificado ? '' : ' unverified'}" style="--c:${g.color}" data-tip="${esc(u.nome)}<br>${esc(g.label)} · ${u.verificado ? 'verificado' : 'não verificado'}"></span>`).join('');
+      } else {
+        html += `<span class="cell${on}" style="--c:${g.color};flex-grow:${g.users.length}" data-tip="${esc(g.label)}: ${g.users.length}"></span>`;
+      }
+    });
+    people.innerHTML = html;
+    people.classList.toggle('filtering', state.vinculo !== undefined);
+    people.setAttribute('aria-label', 'Distribuição por vínculo: ' + byGroup.map(g => `${g.label} ${g.users.length}`).join(', '));
+
+    groupsEl.innerHTML = byGroup.map(g => {
+      const ver = g.users.filter(u => u.verificado).length;
+      return `<button class="group" type="button" style="--c:${g.color}" data-key="${g.key === null ? '__null' : esc(g.key)}" aria-pressed="${state.vinculo === g.key}">
+        <span class="name"><span class="swatch"></span>${esc(g.label)}</span>
+        <span class="n">${nf.format(g.users.length)}<span>${pct(g.users.length, total)}%</span></span>
+        <span class="sub" style="font-size:12.5px;color:var(--muted)">${ver} verificados</span>
+      </button>`;
+    }).join('');
+  }
+  function unknownGroups() {
+    const known = new Set(VINCULOS.map(v => v.key));
+    const extra = [...new Set(DATA.users.map(u => u.vinculo || null))].filter(k => !known.has(k));
+    return extra.map(k => ({ key: k, label: k, color: 'var(--c-none)', users: DATA.users.filter(u => u.vinculo === k) }));
+  }
+
+  // ---------- Funil
+  function renderFunnel() {
+    const all = filtered();
+    const pend = DATA.pending.filter(p => state.vinculo === undefined || (p.vinculo || null) === state.vinculo).length;
+    const started = all.length + pend, done = all.length, ver = all.filter(u => u.verificado).length;
+    const steps = [
+      { label: 'Iniciaram o cadastro', n: started, cls: '' },
+      { label: 'Concluíram o cadastro', n: done, cls: '' },
+      { label: 'Verificaram o e-mail', n: ver, cls: 'ok' },
+    ];
+    $('funnel').innerHTML = steps.map(s => `
+      <div class="step">
+        <div class="step-row"><span>${s.label}</span><b>${nf.format(s.n)} <span>· ${pct(s.n, started)}%</span></b></div>
+        <div class="track"><div class="fill ${s.cls}" style="width:${pct(s.n, started)}%"></div></div>
+      </div>`).join('');
+    const notVer = done - ver;
+    $('funnel-note').textContent = notVer
+      ? `${notVer} ${notVer === 1 ? 'pessoa concluiu' : 'pessoas concluíram'} o cadastro mas ainda não confirmou o e-mail.`
+      : 'Todos que concluíram o cadastro confirmaram o e-mail.';
+  }
+
+  // ---------- Barras horizontais
+  function hbars(el, rows, total) {
+    if (!rows.length) { el.innerHTML = '<p class="empty">Sem dados para este filtro.</p>'; return; }
+    const max = Math.max(...rows.map(r => r.n), 1);
+    el.innerHTML = rows.map(r => `
+      <div class="hbar">
+        <span>${esc(r.label)}</span>
+        <span class="v"><b>${nf.format(r.n)}</b> · ${pct(r.n, total)}%</span>
+        <div class="track"><div class="fill ${r.cls || ''}" style="width:${r.n / max * 100}%"></div></div>
+      </div>`).join('');
+  }
+  function renderDevices() {
+    const all = filtered(); const c = {};
+    all.forEach(u => c[u.dispositivo] = (c[u.dispositivo] || 0) + 1);
+    hbars($('devices'), Object.entries(c).map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n), all.length);
+  }
+  function renderFields() {
+    const all = filtered(); const t = all.length;
+    hbars($('fields'), [
+      { label: 'E-mail', n: all.filter(u => u.email).length },
+      { label: 'Telefone', n: all.filter(u => u.telefone).length },
+      { label: 'Vínculo', n: all.filter(u => u.vinculo).length },
+    ], t);
+    // escala fixa no total, não no maior valor
+    $('fields').querySelectorAll('.fill').forEach((f, i) => {
+      const n = [all.filter(u => u.email).length, all.filter(u => u.telefone).length, all.filter(u => u.vinculo).length][i];
+      f.style.width = (t ? n / t * 100 : 0) + '%';
+    });
+  }
+
+  // ---------- Colunas
+  function niceMax(m) { if (m <= 5) return 5; const p = Math.pow(10, Math.floor(Math.log10(m))); const s = [1, 2, 2.5, 5, 10].find(s => s * p >= m); return s * p; }
+  function columns(el, items, opts = {}) {
+    const max = niceMax(Math.max(...items.map(i => i.n), 0));
+    const lines = [0.5, 1].map(f => `<div class="gridline" style="bottom:${f * 100}%"><span>${nf.format(max * f)}</span></div>`).join('');
+    const showVals = items.length <= 12;
+    el.innerHTML = `
+      <div class="plot">${lines}${items.map(i => `
+        <div class="col" tabindex="0" data-tip="<b>${esc(i.tip)}</b><br>${nf.format(i.n)} cadastro${i.n === 1 ? '' : 's'}" aria-label="${esc(i.tip)}: ${i.n}">
+          <div class="bar ${i.n ? '' : 'zero'}" style="height:${i.n / max * 100}%"></div>
+          ${showVals && i.n ? `<span class="val" style="bottom:calc(${i.n / max * 100}% + 4px)">${i.n}</span>` : ''}
+        </div>`).join('')}</div>
+      <div class="labels">${items.map((i, idx) => `<span>${opts.every && idx % opts.every ? '' : esc(i.label)}</span>`).join('')}</div>`;
+  }
+  function renderDays() {
+    const all = filtered();
+    if (!DATA.users.length) { $('days').innerHTML = '<p class="empty">Nenhum cadastro ainda.</p>'; return; }
+    const first = DATA.users.reduce((a, u) => Math.min(a, +new Date(u.registro)), Infinity);
+    const keys = []; const end = dayKey(DATA.geradoEm);
+    for (let t = first; ; t += 864e5) { const k = dayKey(t); if (!keys.includes(k)) keys.push(k); if (k >= end || keys.length > 60) break; }
+    const c = {}; all.forEach(u => { const k = dayKey(u.registro); c[k] = (c[k] || 0) + 1; });
+    const items = keys.slice(-31).map(k => ({ label: fmtDay(k), tip: fmtDay(k), n: c[k] || 0 }));
+    columns($('days'), items, { every: items.length > 14 ? 3 : 0 });
+    const peak = items.reduce((a, b) => b.n > a.n ? b : a, items[0]);
+    $('days-sub').textContent = peak && peak.n ? `Pico em ${peak.label}, com ${peak.n} cadastro${peak.n === 1 ? '' : 's'}. Horário de Fortaleza.` : 'Horário de Fortaleza.';
+  }
+  function renderHours() {
+    const all = filtered(); const c = Array(24).fill(0);
+    all.forEach(u => c[hourOf(u.registro)]++);
+    const items = c.map((n, h) => ({ label: `${h}h`, tip: `${String(h).padStart(2, '0')}h – ${String(h).padStart(2, '0')}h59`, n }));
+    columns($('hours'), items, { every: 3 });
+    const top = items.reduce((a, b) => b.n > a.n ? b : a, items[0]);
+    $('hours-sub').textContent = top.n ? `Horário mais movimentado: ${top.label}, com ${top.n} cadastro${top.n === 1 ? '' : 's'}.` : 'Soma de todos os dias.';
+  }
+
+  // ---------- Tabela
+  const COLS = [
+    { key: 'nome', label: 'Usuário' },
+    { key: 'vinculo', label: 'Vínculo' },
+    { key: 'registro', label: 'Cadastro' },
+    { key: 'dispositivo', label: 'Aparelho' },
+    { key: 'verificado', label: 'Situação' },
+    { key: 'pontos', label: 'Pontos', num: true },
+    { key: 'scans_feitos', label: 'Conexões', num: true },
+  ];
+  function renderHead() {
+    $('thead').innerHTML = COLS.map(c => {
+      const active = state.sort.key === c.key;
+      const sort = active ? (state.sort.dir > 0 ? 'ascending' : 'descending') : null;
+      return `<th class="${c.num ? 'num' : ''}" ${sort ? `aria-sort="${sort}"` : ''}><button type="button" data-sort="${c.key}">${c.label}
+        <svg class="arrow" viewBox="0 0 10 10" aria-hidden="true">${active ? `<path d="${state.sort.dir > 0 ? 'M2 6.5 5 3.5 8 6.5' : 'M2 3.5 5 6.5 8 3.5'}" fill="none" stroke="currentColor" stroke-width="1.6"/>` : ''}</svg></button></th>`;
+    }).join('');
+  }
+  function renderTable() {
+    const q = state.q.trim().toLowerCase();
+    let rows = filtered().filter(u => {
+      if (q && !(`${u.nome} ${u.email}`.toLowerCase().includes(q))) return false;
+      if (state.status === 'ok' && !u.verificado) return false;
+      if (state.status === 'pend' && u.verificado) return false;
+      if (state.status === 'admin' && !u.admin) return false;
+      return true;
+    });
+    const { key, dir } = state.sort;
+    rows = [...rows].sort((a, b) => {
+      let x = a[key], y = b[key];
+      if (key === 'registro') { x = +new Date(x); y = +new Date(y); }
+      if (key === 'vinculo') { x = vinfo(x).label; y = vinfo(y).label; }
+      if (typeof x === 'string' || typeof y === 'string') return String(x ?? '').localeCompare(String(y ?? ''), 'pt-BR') * dir;
+      return ((x ?? 0) - (y ?? 0)) * dir;
+    });
+    renderHead();
+    $('tbody').innerHTML = rows.length ? rows.map(u => {
+      const v = vinfo(u.vinculo);
+      return `<tr>
+        <td><div class="who"><b>${esc(u.nome)}</b><span>${esc(maskEmail(u.email))}</span></div></td>
+        <td><span class="tag"><span class="swatch" style="--c:${v.color}"></span>${esc(v.label)}</span></td>
+        <td>${fmtDT(u.registro)}</td>
+        <td>${esc(u.dispositivo)}</td>
+        <td>${u.admin ? '<span class="pill admin">Admin</span> ' : ''}${u.verificado ? '<span class="pill ok">Verificado</span>' : '<span class="pill warn">Não verificado</span>'}</td>
+        <td class="num">${nf.format(u.pontos || 0)}</td>
+        <td class="num">${nf.format(u.scans_feitos || 0)}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="${COLS.length}"><div class="empty">Nenhum usuário encontrado com esses filtros. <button class="linkbtn" type="button" id="reset-table">Limpar filtros</button></div></td></tr>`;
+    $('count').textContent = `Mostrando ${rows.length} de ${DATA.users.length} usuários`;
+  }
+  function renderVinculoSelect() {
+    const sel = $('f-vinculo');
+    const present = [...new Set(DATA.users.map(u => u.vinculo || null))];
+    sel.innerHTML = '<option value="__all">Todos</option>' + VINCULOS.filter(v => present.includes(v.key))
+      .map(v => `<option value="${v.key === null ? '__null' : v.key}">${v.label}</option>`).join('');
+    sel.value = state.vinculo === undefined ? '__all' : state.vinculo === null ? '__null' : state.vinculo;
+  }
+
+  function renderAll() {
+    renderKpis(); renderPeople(); renderFunnel(); renderDevices(); renderFields(); renderDays(); renderHours(); renderTable(); renderVinculoSelect();
+    const fb = $('filterbar');
+    fb.hidden = state.vinculo === undefined;
+    if (state.vinculo !== undefined) $('filter-name').textContent = vinfo(state.vinculo).label;
+  }
+  function setVinculo(k) { state.vinculo = state.vinculo === k ? undefined : k; renderAll(); }
+
+  // ---------- Eventos
+  $('groups').addEventListener('click', e => {
+    const b = e.target.closest('.group'); if (!b) return;
+    setVinculo(b.dataset.key === '__null' ? null : b.dataset.key);
+  });
+  $('clear-filter').addEventListener('click', () => { state.vinculo = undefined; renderAll(); });
+  $('f-vinculo').addEventListener('change', e => {
+    const v = e.target.value; state.vinculo = v === '__all' ? undefined : v === '__null' ? null : v; renderAll();
+  });
+  $('f-status').addEventListener('change', e => { state.status = e.target.value; renderTable(); });
+  let qt; $('q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; renderTable(); }, 120); });
+  $('thead').addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]'); if (!b) return;
+    const k = b.dataset.sort;
+    state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === 'nome' || k === 'vinculo' ? 1 : -1 };
+    renderTable();
+  });
+  $('tbody').addEventListener('click', e => {
+    if (e.target.id !== 'reset-table') return;
+    state.q = ''; state.status = ''; state.vinculo = undefined; $('q').value = ''; $('f-status').value = ''; renderAll();
+  });
+  document.addEventListener('pointerover', e => { const t = e.target.closest('[data-tip]'); if (t) showTip(t, t.dataset.tip); });
+  document.addEventListener('pointerout', e => { if (e.target.closest('[data-tip]')) hideTip(); });
+  document.addEventListener('focusin', e => { const t = e.target.closest('[data-tip]'); t ? showTip(t, t.dataset.tip) : hideTip(); });
+  addEventListener('scroll', hideTip, { passive: true });
+
+  // ---------- Dados
+  function setSource(mode, text) { $('source').dataset.mode = mode; $('source-text').textContent = text; }
+  function banner(msg) { $('banner').hidden = !msg; $('banner-text').textContent = msg || ''; }
+
+  async function load() {
+    const btn = $('refresh'); btn.disabled = true; btn.classList.add('loading');
+    try {
+      if (window.__SNAPSHOT__) throw new Error('snapshot');
+      const r = await fetch('/api/data', { cache: 'no-store' });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw Object.assign(new Error(body.detalhe || `HTTP ${r.status}`), { api: true });
+      DATA = body; banner('');
+      setSource('live', `Ao vivo · atualizado às ${new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(DATA.geradoEm))}`);
+    } catch (err) {
+      if (window.__SNAPSHOT__) {
+        DATA = window.__SNAPSHOT__;
+        setSource('snapshot', `Retrato de ${fmtDT(DATA.geradoEm)}`);
+        banner(`Esta versão mostra os dados como estavam em ${fmtDT(DATA.geradoEm)}. Para dados ao vivo, rode o projeto com "npm start".`);
+      } else {
+        setSource('erro', 'Sem conexão com o banco');
+        banner(`Não foi possível ler o banco (${err.message}). Confira o DATABASE_URL no .env e clique em Atualizar.`);
+        if (!DATA) return;
+      }
+    } finally { btn.disabled = false; btn.classList.remove('loading'); }
+    renderAll();
+  }
+  $('refresh').addEventListener('click', load);
+  load();
+  if (!window.__SNAPSHOT__) setInterval(() => { if (!document.hidden) load(); }, 60000);
+})();
+</script>
