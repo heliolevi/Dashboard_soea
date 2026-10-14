@@ -25,5 +25,4 @@ A conexão vem de `DATABASE_URL` no arquivo `.env` (já preenchido). Os dados s�
 - **Dados informados**: e-mail, telefone e vínculo preenchidos.
 - **Cadastros por dia e por hora** (horário de Fortaleza).
 - **Tabela de usuários** com busca, filtros e ordenação.
-
-> O `.env` contém a senha do banco. Não publique esse arquivo; o `.gitignore` já o exclui.
+  
